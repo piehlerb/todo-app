@@ -1,8 +1,8 @@
 // ===== Supabase Configuration =====
-const SUPABASE_URL = 'https://itkpkxtzxsuclfudznak.supabase.co';
+const SUPABASE_URL = 'https://itkpkxtzxsuclfudznak.supabaseClient.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_s2bHZPU8nv2nFBrZtpbEdw_wvwTrSKD';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = window.supabaseClient.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ===== Constants =====
 const COLORS = [
@@ -103,7 +103,7 @@ let modalState = {
 
 // ===== Auth Functions =====
 async function checkAuth() {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
         state.user = session.user;
         await loadFromSupabase();
@@ -115,7 +115,7 @@ async function checkAuth() {
 
 async function signUp(email, password) {
     showAuthError('');
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await supabaseClient.auth.signUp({
         email,
         password,
         options: {
@@ -139,7 +139,7 @@ async function signUp(email, password) {
 
 async function signIn(email, password) {
     showAuthError('');
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
         email,
         password
     });
@@ -155,7 +155,7 @@ async function signIn(email, password) {
 }
 
 async function signInWithGoogle() {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
         options: {
             redirectTo: window.location.origin
@@ -168,7 +168,7 @@ async function signInWithGoogle() {
 }
 
 async function signOut() {
-    await supabase.auth.signOut();
+    await supabaseClient.auth.signOut();
     state.user = null;
     state.lists = [];
     showAuth();
@@ -508,7 +508,7 @@ async function createList(name, color) {
 
     // Sync to Supabase
     if (state.user) {
-        const { error } = await supabase.from('lists').insert({
+        const { error } = await supabaseClient.from('lists').insert({
             id,
             user_id: state.user.id,
             name: name.trim(),
@@ -619,7 +619,7 @@ async function addTask(listId, content) {
     list.tasks.unshift(task);
 
     if (state.user) {
-        const { error } = await supabase.from('tasks').insert({
+        const { error } = await supabaseClient.from('tasks').insert({
             id,
             list_id: listId,
             user_id: state.user.id,
@@ -1047,7 +1047,7 @@ function setupEventListeners() {
     });
 
     // Listen for auth state changes
-    supabase.auth.onAuthStateChange((event, session) => {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_IN' && session) {
             state.user = session.user;
             loadFromSupabase().then(() => showHome());
