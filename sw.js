@@ -1,12 +1,11 @@
-const CACHE_NAME = 'tasks-pwa-v1';
+const CACHE_NAME = 'tasks-pwa-v2';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
     '/styles.css',
     '/app.js',
     '/manifest.json',
-    '/icons/icon-192.png',
-    '/icons/icon-512.png'
+    '/icons/icon.svg'
 ];
 
 // Install event - cache static assets
@@ -15,7 +14,14 @@ self.addEventListener('install', (event) => {
         caches.open(CACHE_NAME)
             .then((cache) => {
                 console.log('Caching static assets');
-                return cache.addAll(STATIC_ASSETS);
+                // Use addAll with individual adds as fallback for missing files
+                return Promise.all(
+                    STATIC_ASSETS.map(url =>
+                        cache.add(url).catch(err => {
+                            console.warn('Failed to cache:', url, err);
+                        })
+                    )
+                );
             })
             .then(() => {
                 // Force the waiting service worker to become active

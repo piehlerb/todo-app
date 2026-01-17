@@ -199,7 +199,7 @@ async function loadFromSupabase() {
 
     try {
         // Load lists
-        const { data: lists, error: listsError } = await supabase
+        const { data: lists, error: listsError } = await supabaseClient
             .from('lists')
             .select('*')
             .order('position', { ascending: true });
@@ -207,7 +207,7 @@ async function loadFromSupabase() {
         if (listsError) throw listsError;
 
         // Load tasks
-        const { data: tasks, error: tasksError } = await supabase
+        const { data: tasks, error: tasksError } = await supabaseClient
             .from('tasks')
             .select('*')
             .order('position', { ascending: true });
@@ -543,7 +543,7 @@ async function updateList(listId, name, color) {
     list.color = color;
 
     if (state.user) {
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('lists')
             .update({ name: name.trim(), color })
             .eq('id', listId);
