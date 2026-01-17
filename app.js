@@ -2,7 +2,15 @@
 const SUPABASE_URL = 'https://itkpkxtzxsuclfudznak.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_s2bHZPU8nv2nFBrZtpbEdw_wvwTrSKD';
 
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let supabaseClient = null;
+
+function initSupabase() {
+    if (window.supabase && window.supabase.createClient) {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        return true;
+    }
+    return false;
+}
 
 // ===== Constants =====
 const COLORS = [
@@ -557,7 +565,7 @@ async function deleteList(listId) {
     }
 
     if (state.user) {
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('lists')
             .delete()
             .eq('id', listId);
@@ -589,7 +597,7 @@ async function reorderLists(fromIndex, toIndex) {
             position: index
         }));
 
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('lists')
             .upsert(updates);
 
@@ -647,7 +655,7 @@ async function toggleTask(taskId) {
             task.completedAt = task.completed ? Date.now() : null;
 
             if (state.user) {
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('tasks')
                     .update({
                         completed: task.completed,
@@ -694,7 +702,7 @@ async function reorderTasks(listId, fromIndex, toIndex) {
             completed_at: task.completedAt ? new Date(task.completedAt).toISOString() : null
         }));
 
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('tasks')
             .upsert(updates);
 
@@ -1073,6 +1081,12 @@ async function registerServiceWorker() {
 
 // ===== Initialize =====
 async function init() {
+    // Initialize Supabase client
+    if (!initSupabase()) {
+        console.error('Failed to initialize Supabase. Make sure the Supabase CDN script is loaded.');
+        return;
+    }
+
     setupEventListeners();
     registerServiceWorker();
     await checkAuth();
