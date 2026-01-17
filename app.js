@@ -1,3 +1,9 @@
+// ===== Supabase Configuration =====
+const SUPABASE_URL = 'https://itkpkxtzxsuclfudznak.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_s2bHZPU8nv2nFBrZtpbEdw_wvwTrSKD';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 // ===== Constants =====
 const COLORS = [
     { name: 'coral', value: '#E57373' },
@@ -10,24 +16,35 @@ const COLORS = [
     { name: 'slate', value: '#78909C' }
 ];
 
-const STORAGE_KEY = 'todo-pwa-data';
+const LOCAL_STORAGE_KEY = 'todo-pwa-data';
 
 // ===== State =====
 let state = {
     lists: [],
-    currentListId: null
+    currentListId: null,
+    user: null
 };
 
 // ===== DOM Elements =====
 const elements = {
     // Views
+    authView: document.getElementById('auth-view'),
     homeView: document.getElementById('home-view'),
     listView: document.getElementById('list-view'),
+
+    // Auth
+    authTabs: document.querySelectorAll('.auth-tab'),
+    authEmail: document.getElementById('auth-email'),
+    authPassword: document.getElementById('auth-password'),
+    authSubmit: document.getElementById('auth-submit'),
+    authGoogle: document.getElementById('auth-google'),
+    authError: document.getElementById('auth-error'),
 
     // Home
     listsContainer: document.getElementById('lists-container'),
     emptyHome: document.getElementById('empty-home'),
     fabAdd: document.getElementById('fab-add'),
+    userMenuBtn: document.getElementById('user-menu-btn'),
 
     // List Detail
     backBtn: document.getElementById('back-btn'),
@@ -63,7 +80,16 @@ const elements = {
     deleteModal: document.getElementById('delete-modal'),
     deleteMessage: document.getElementById('delete-message'),
     cancelDelete: document.getElementById('cancel-delete'),
-    confirmDelete: document.getElementById('confirm-delete')
+    confirmDelete: document.getElementById('confirm-delete'),
+
+    // User Modal
+    userModal: document.getElementById('user-modal'),
+    userEmail: document.getElementById('user-email'),
+    syncNowBtn: document.getElementById('sync-now-btn'),
+    logoutBtn: document.getElementById('logout-btn'),
+
+    // Sync Status
+    syncStatus: document.getElementById('sync-status')
 };
 
 // Modal state
@@ -71,28 +97,172 @@ let modalState = {
     selectedListId: null,
     selectedColor: COLORS[0].value,
     editingListId: null,
-    pendingDeleteListId: null
+    pendingDeleteListId: null,
+    authMode: 'login'
 };
 
-// ===== Storage =====
-function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+// ===== Auth Functions =====
+async function checkAuth() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+        state.user = session.user;
+        await loadFromSupabase();
+        showHome();
+    } else {
+        showAuth();
+    }
 }
 
-function loadState() {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-        try {
-            state = JSON.parse(saved);
-        } catch (e) {
-            console.error('Failed to load state:', e);
+async function signUp(email, password) {
+    showAuthError('');
+    const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+            emailRedirectTo: window.location.origin
         }
+    });
+
+    if (error) {
+        showAuthError(error.message);
+        return;
+    }
+
+    if (data.user && !data.session) {
+        showAuthError('Check your email for the confirmation link!');
+    } else if (data.session) {
+        state.user = data.user;
+        await loadFromSupabase();
+        showHome();
+    }
+}
+
+async function signIn(email, password) {
+    showAuthError('');
+    const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+    });
+
+    if (error) {
+        showAuthError(error.message);
+        return;
+    }
+
+    state.user = data.user;
+    await loadFromSupabase();
+    showHome();
+}
+
+async function signInWithGoogle() {
+    const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            redirectTo: window.location.origin
+        }
+    });
+
+    if (error) {
+        showAuthError(error.message);
+    }
+}
+
+async function signOut() {
+    await supabase.auth.signOut();
+    state.user = null;
+    state.lists = [];
+    showAuth();
+}
+
+function showAuthError(message) {
+    if (message) {
+        elements.authError.textContent = message;
+        elements.authError.classList.remove('hidden');
+    } else {
+        elements.authError.classList.add('hidden');
+    }
+}
+
+// ===== Supabase Sync Functions =====
+async function loadFromSupabase() {
+    if (!state.user) return;
+
+    showSyncStatus('Syncing...', 'syncing');
+
+    try {
+        // Load lists
+        const { data: lists, error: listsError } = await supabase
+            .from('lists')
+            .select('*')
+            .order('position', { ascending: true });
+
+        if (listsError) throw listsError;
+
+        // Load tasks
+        const { data: tasks, error: tasksError } = await supabase
+            .from('tasks')
+            .select('*')
+            .order('position', { ascending: true });
+
+        if (tasksError) throw tasksError;
+
+        // Organize tasks into lists
+        state.lists = lists.map(list => ({
+            id: list.id,
+            name: list.name,
+            color: list.color,
+            position: list.position,
+            createdAt: new Date(list.created_at).getTime(),
+            tasks: tasks
+                .filter(t => t.list_id === list.id)
+                .map(t => ({
+                    id: t.id,
+                    content: t.content,
+                    completed: t.completed,
+                    position: t.position,
+                    createdAt: new Date(t.created_at).getTime(),
+                    completedAt: t.completed_at ? new Date(t.completed_at).getTime() : null
+                }))
+        }));
+
+        showSyncStatus('Synced!', 'success');
+        renderHome();
+    } catch (error) {
+        console.error('Sync error:', error);
+        showSyncStatus('Sync failed', 'error');
+    }
+}
+
+async function syncToSupabase() {
+    if (!state.user) return;
+    showSyncStatus('Saving...', 'syncing');
+}
+
+function showSyncStatus(text, type) {
+    const syncIcon = elements.syncStatus.querySelector('.sync-icon');
+    const syncText = elements.syncStatus.querySelector('.sync-text');
+
+    syncText.textContent = text;
+    elements.syncStatus.classList.remove('hidden', 'success', 'error');
+    syncIcon.classList.remove('spinning');
+
+    if (type === 'syncing') {
+        syncIcon.textContent = '↻';
+        syncIcon.classList.add('spinning');
+    } else if (type === 'success') {
+        elements.syncStatus.classList.add('success');
+        syncIcon.textContent = '✓';
+        setTimeout(() => elements.syncStatus.classList.add('hidden'), 2000);
+    } else if (type === 'error') {
+        elements.syncStatus.classList.add('error');
+        syncIcon.textContent = '✕';
+        setTimeout(() => elements.syncStatus.classList.add('hidden'), 3000);
     }
 }
 
 // ===== Utility Functions =====
 function generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    return crypto.randomUUID();
 }
 
 function formatTimestamp(timestamp) {
@@ -100,33 +270,31 @@ function formatTimestamp(timestamp) {
     const now = new Date();
     const diff = now - date;
 
-    // Today
     if (diff < 24 * 60 * 60 * 1000 && date.getDate() === now.getDate()) {
         return 'Today at ' + date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     }
 
-    // Yesterday
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
     if (date.getDate() === yesterday.getDate()) {
         return 'Yesterday at ' + date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     }
 
-    // This week
     if (diff < 7 * 24 * 60 * 60 * 1000) {
         return date.toLocaleDateString([], { weekday: 'long' }) + ' at ' + date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     }
 
-    // Older
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // ===== Render Functions =====
 function renderHome() {
-    const activeLists = state.lists.filter(list => list.tasks.some(t => !t.completed));
-    const emptyLists = state.lists.filter(list => !list.tasks.some(t => !t.completed));
-    const allLists = [...activeLists, ...emptyLists]; // Show lists with active tasks first
-
     if (state.lists.length === 0) {
         elements.listsContainer.innerHTML = '';
         elements.emptyHome.classList.remove('hidden');
@@ -159,7 +327,6 @@ function renderHome() {
             `;
         }).join('');
 
-        // Add drag and drop for list reordering
         setupListDragAndDrop();
     }
 }
@@ -168,11 +335,9 @@ function renderListDetail() {
     const list = state.lists.find(l => l.id === state.currentListId);
     if (!list) return;
 
-    // Update header
     elements.listTitle.textContent = list.name;
     document.querySelector('.list-header').style.borderBottomColor = list.color;
 
-    // Active tasks
     const activeTasks = list.tasks.filter(t => !t.completed);
     const completedTasks = list.tasks.filter(t => t.completed);
 
@@ -185,12 +350,11 @@ function renderListDetail() {
         setupTaskDragAndDrop();
     }
 
-    // Completed tasks
     if (completedTasks.length > 0) {
         elements.completedSection.classList.remove('hidden');
         elements.completedCount.textContent = completedTasks.length;
         elements.completedTasks.innerHTML = completedTasks
-            .sort((a, b) => b.completedAt - a.completedAt) // Most recent first
+            .sort((a, b) => b.completedAt - a.completedAt)
             .map(task => renderTaskItem(task, list.color, true))
             .join('');
     } else {
@@ -246,17 +410,21 @@ function renderListOptions() {
     `).join('');
 }
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+// ===== Navigation =====
+function showAuth() {
+    elements.authView.classList.add('active');
+    elements.homeView.classList.remove('active');
+    elements.listView.classList.remove('active');
 }
 
-// ===== Navigation =====
 function showHome() {
     state.currentListId = null;
+    elements.authView.classList.remove('active');
     elements.listView.classList.remove('active');
     elements.homeView.classList.add('active');
+    if (state.user) {
+        elements.userEmail.textContent = state.user.email;
+    }
     renderHome();
 }
 
@@ -321,75 +489,184 @@ function openDeleteModal(listId) {
 }
 
 // ===== List Operations =====
-function createList(name, color) {
+async function createList(name, color) {
+    const position = state.lists.length;
+    const id = generateId();
+
     const list = {
-        id: generateId(),
+        id,
         name: name.trim(),
-        color: color,
+        color,
+        position,
         tasks: [],
         createdAt: Date.now()
     };
+
+    // Optimistic update
     state.lists.push(list);
-    saveState();
+    renderHome();
+
+    // Sync to Supabase
+    if (state.user) {
+        const { error } = await supabase.from('lists').insert({
+            id,
+            user_id: state.user.id,
+            name: name.trim(),
+            color,
+            position
+        });
+
+        if (error) {
+            console.error('Error creating list:', error);
+            showSyncStatus('Failed to save', 'error');
+        } else {
+            showSyncStatus('Saved!', 'success');
+        }
+    }
+
     return list;
 }
 
-function updateList(listId, name, color) {
+async function updateList(listId, name, color) {
     const list = state.lists.find(l => l.id === listId);
-    if (list) {
-        list.name = name.trim();
-        list.color = color;
-        saveState();
+    if (!list) return;
+
+    list.name = name.trim();
+    list.color = color;
+
+    if (state.user) {
+        const { error } = await supabase
+            .from('lists')
+            .update({ name: name.trim(), color })
+            .eq('id', listId);
+
+        if (error) {
+            console.error('Error updating list:', error);
+            showSyncStatus('Failed to save', 'error');
+        } else {
+            showSyncStatus('Saved!', 'success');
+        }
     }
 }
 
-function deleteList(listId) {
+async function deleteList(listId) {
     state.lists = state.lists.filter(l => l.id !== listId);
-    saveState();
+
     if (state.currentListId === listId) {
         showHome();
     }
+
+    if (state.user) {
+        const { error } = await supabase
+            .from('lists')
+            .delete()
+            .eq('id', listId);
+
+        if (error) {
+            console.error('Error deleting list:', error);
+            showSyncStatus('Failed to delete', 'error');
+        } else {
+            showSyncStatus('Deleted!', 'success');
+        }
+    }
 }
 
-function reorderLists(fromIndex, toIndex) {
+async function reorderLists(fromIndex, toIndex) {
     const [removed] = state.lists.splice(fromIndex, 1);
     state.lists.splice(toIndex, 0, removed);
-    saveState();
+
+    // Update positions
+    state.lists.forEach((list, index) => {
+        list.position = index;
+    });
+
+    if (state.user) {
+        const updates = state.lists.map((list, index) => ({
+            id: list.id,
+            user_id: state.user.id,
+            name: list.name,
+            color: list.color,
+            position: index
+        }));
+
+        const { error } = await supabase
+            .from('lists')
+            .upsert(updates);
+
+        if (error) {
+            console.error('Error reordering lists:', error);
+        }
+    }
 }
 
 // ===== Task Operations =====
-function addTask(listId, content) {
+async function addTask(listId, content) {
     const list = state.lists.find(l => l.id === listId);
     if (!list) return null;
 
+    const id = generateId();
+    const position = list.tasks.filter(t => !t.completed).length;
+
     const task = {
-        id: generateId(),
+        id,
         content: content.trim(),
         completed: false,
+        position,
         createdAt: Date.now(),
         completedAt: null
     };
 
-    // Add to beginning of list
     list.tasks.unshift(task);
-    saveState();
+
+    if (state.user) {
+        const { error } = await supabase.from('tasks').insert({
+            id,
+            list_id: listId,
+            user_id: state.user.id,
+            content: content.trim(),
+            completed: false,
+            position
+        });
+
+        if (error) {
+            console.error('Error adding task:', error);
+            showSyncStatus('Failed to save', 'error');
+        } else {
+            showSyncStatus('Saved!', 'success');
+        }
+    }
+
     return task;
 }
 
-function toggleTask(taskId) {
+async function toggleTask(taskId) {
     for (const list of state.lists) {
         const task = list.tasks.find(t => t.id === taskId);
         if (task) {
             task.completed = !task.completed;
             task.completedAt = task.completed ? Date.now() : null;
-            saveState();
+
+            if (state.user) {
+                const { error } = await supabase
+                    .from('tasks')
+                    .update({
+                        completed: task.completed,
+                        completed_at: task.completed ? new Date().toISOString() : null
+                    })
+                    .eq('id', taskId);
+
+                if (error) {
+                    console.error('Error toggling task:', error);
+                }
+            }
+
             return task;
         }
     }
     return null;
 }
 
-function reorderTasks(listId, fromIndex, toIndex) {
+async function reorderTasks(listId, fromIndex, toIndex) {
     const list = state.lists.find(l => l.id === listId);
     if (!list) return;
 
@@ -399,22 +676,32 @@ function reorderTasks(listId, fromIndex, toIndex) {
     const [removed] = activeTasks.splice(fromIndex, 1);
     activeTasks.splice(toIndex, 0, removed);
 
+    // Update positions
+    activeTasks.forEach((task, index) => {
+        task.position = index;
+    });
+
     list.tasks = [...activeTasks, ...completedTasks];
-    saveState();
-}
 
-function moveTask(taskId, fromListId, toListId) {
-    const fromList = state.lists.find(l => l.id === fromListId);
-    const toList = state.lists.find(l => l.id === toListId);
+    if (state.user) {
+        const updates = activeTasks.map((task, index) => ({
+            id: task.id,
+            list_id: listId,
+            user_id: state.user.id,
+            content: task.content,
+            completed: task.completed,
+            position: index,
+            completed_at: task.completedAt ? new Date(task.completedAt).toISOString() : null
+        }));
 
-    if (!fromList || !toList) return;
+        const { error } = await supabase
+            .from('tasks')
+            .upsert(updates);
 
-    const taskIndex = fromList.tasks.findIndex(t => t.id === taskId);
-    if (taskIndex === -1) return;
-
-    const [task] = fromList.tasks.splice(taskIndex, 1);
-    toList.tasks.unshift(task);
-    saveState();
+        if (error) {
+            console.error('Error reordering tasks:', error);
+        }
+    }
 }
 
 // ===== Drag and Drop =====
@@ -510,20 +797,66 @@ function setupTaskDragAndDrop() {
     });
 }
 
-// Touch drag and drop for mobile
-let touchStartY = 0;
-let touchDraggedElement = null;
-let touchDraggedIndex = -1;
-let touchPlaceholder = null;
-
-function setupTouchDragAndDrop() {
-    // Will implement touch-specific drag handling
-    // For now, using the native drag API which works on desktop
-    // Mobile will get tap-to-reorder in a future enhancement
-}
-
 // ===== Event Listeners =====
 function setupEventListeners() {
+    // Auth tabs
+    elements.authTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            elements.authTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            modalState.authMode = tab.dataset.tab;
+            elements.authSubmit.textContent = modalState.authMode === 'login' ? 'Log In' : 'Sign Up';
+            showAuthError('');
+        });
+    });
+
+    // Auth submit
+    elements.authSubmit.addEventListener('click', () => {
+        const email = elements.authEmail.value.trim();
+        const password = elements.authPassword.value;
+
+        if (!email || !password) {
+            showAuthError('Please enter email and password');
+            return;
+        }
+
+        if (modalState.authMode === 'login') {
+            signIn(email, password);
+        } else {
+            signUp(email, password);
+        }
+    });
+
+    // Enter key on password field
+    elements.authPassword.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            elements.authSubmit.click();
+        }
+    });
+
+    // Google auth
+    elements.authGoogle.addEventListener('click', signInWithGoogle);
+
+    // User menu
+    elements.userMenuBtn.addEventListener('click', () => {
+        openModal(elements.userModal);
+    });
+
+    elements.userModal.querySelector('.modal-backdrop').addEventListener('click', () => {
+        closeModal(elements.userModal);
+    });
+
+    elements.syncNowBtn.addEventListener('click', async () => {
+        closeModal(elements.userModal);
+        await loadFromSupabase();
+        renderHome();
+    });
+
+    elements.logoutBtn.addEventListener('click', async () => {
+        closeModal(elements.userModal);
+        await signOut();
+    });
+
     // Home view
     elements.fabAdd.addEventListener('click', openQuickAddModal);
 
@@ -569,10 +902,10 @@ function setupEventListeners() {
         elements.completedTasks.classList.toggle('expanded');
     });
 
-    elements.addTaskBtn.addEventListener('click', () => {
+    elements.addTaskBtn.addEventListener('click', async () => {
         const content = elements.newTaskInput.value.trim();
         if (content && state.currentListId) {
-            addTask(state.currentListId, content);
+            await addTask(state.currentListId, content);
             elements.newTaskInput.value = '';
             renderListDetail();
         }
@@ -606,14 +939,13 @@ function setupEventListeners() {
         openListModal();
     });
 
-    elements.confirmQuickAdd.addEventListener('click', () => {
+    elements.confirmQuickAdd.addEventListener('click', async () => {
         const content = elements.quickTaskInput.value.trim();
         if (content && modalState.selectedListId) {
-            addTask(modalState.selectedListId, content);
+            await addTask(modalState.selectedListId, content);
             closeModal(elements.quickAddModal);
             renderHome();
         } else if (content && !modalState.selectedListId) {
-            // No lists exist, create one first
             closeModal(elements.quickAddModal);
             openListModal();
         }
@@ -643,7 +975,7 @@ function setupEventListeners() {
         }
     });
 
-    elements.confirmListModal.addEventListener('click', () => {
+    elements.confirmListModal.addEventListener('click', async () => {
         const name = elements.listNameInput.value.trim();
         if (!name) {
             elements.listNameInput.focus();
@@ -651,7 +983,7 @@ function setupEventListeners() {
         }
 
         if (modalState.editingListId) {
-            updateList(modalState.editingListId, name, modalState.selectedColor);
+            await updateList(modalState.editingListId, name, modalState.selectedColor);
             closeModal(elements.listModal);
             if (state.currentListId) {
                 renderListDetail();
@@ -659,13 +991,12 @@ function setupEventListeners() {
                 renderHome();
             }
         } else {
-            const newList = createList(name, modalState.selectedColor);
+            const newList = await createList(name, modalState.selectedColor);
             closeModal(elements.listModal);
-            // If we came from quick add, go back there with the new list selected
             if (elements.quickTaskInput.value.trim()) {
                 modalState.selectedListId = newList.id;
                 openQuickAddModal();
-                elements.quickTaskInput.value = elements.quickTaskInput.value; // Preserve text
+                elements.quickTaskInput.value = elements.quickTaskInput.value;
             } else {
                 renderHome();
             }
@@ -692,9 +1023,9 @@ function setupEventListeners() {
         closeModal(elements.deleteModal);
     });
 
-    elements.confirmDelete.addEventListener('click', () => {
+    elements.confirmDelete.addEventListener('click', async () => {
         if (modalState.pendingDeleteListId) {
-            deleteList(modalState.pendingDeleteListId);
+            await deleteList(modalState.pendingDeleteListId);
             closeModal(elements.deleteModal);
             renderHome();
         }
@@ -703,13 +1034,27 @@ function setupEventListeners() {
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            if (elements.deleteModal.classList.contains('active')) {
+            if (elements.userModal.classList.contains('active')) {
+                closeModal(elements.userModal);
+            } else if (elements.deleteModal.classList.contains('active')) {
                 closeModal(elements.deleteModal);
             } else if (elements.listModal.classList.contains('active')) {
                 closeModal(elements.listModal);
             } else if (elements.quickAddModal.classList.contains('active')) {
                 closeModal(elements.quickAddModal);
             }
+        }
+    });
+
+    // Listen for auth state changes
+    supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+            state.user = session.user;
+            loadFromSupabase().then(() => showHome());
+        } else if (event === 'SIGNED_OUT') {
+            state.user = null;
+            state.lists = [];
+            showAuth();
         }
     });
 }
@@ -727,30 +1072,10 @@ async function registerServiceWorker() {
 }
 
 // ===== Initialize =====
-function init() {
-    loadState();
-    renderHome();
-    renderColorOptions();
+async function init() {
     setupEventListeners();
     registerServiceWorker();
-
-    // Add some demo data if empty (for testing)
-    if (state.lists.length === 0) {
-        // Uncomment below to add demo data:
-        /*
-        const personalList = createList('Personal', COLORS[0].value);
-        addTask(personalList.id, 'Buy groceries for the week');
-        addTask(personalList.id, 'Call mom');
-        addTask(personalList.id, 'Schedule dentist appointment');
-
-        const workList = createList('Work', COLORS[3].value);
-        addTask(workList.id, 'Review pull request');
-        addTask(workList.id, 'Prepare presentation slides');
-        addTask(workList.id, 'Update project documentation');
-
-        renderHome();
-        */
-    }
+    await checkAuth();
 }
 
 // Start the app

@@ -787,3 +787,226 @@ input, textarea {
         transform: scale(0.98);
     }
 }
+
+/* ===== Auth View ===== */
+.auth-container {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-lg);
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+    color: white;
+}
+
+.auth-logo {
+    margin-bottom: var(--spacing-md);
+}
+
+.auth-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-xs);
+}
+
+.auth-header p {
+    opacity: 0.9;
+    font-size: 1rem;
+}
+
+.auth-form {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    width: 100%;
+    max-width: 400px;
+    box-shadow: var(--shadow-lg);
+}
+
+.auth-tabs {
+    display: flex;
+    margin-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.auth-tab {
+    flex: 1;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-weight: 500;
+    color: var(--text-tertiary);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all var(--transition-fast);
+}
+
+.auth-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+.auth-form input {
+    width: 100%;
+    padding: var(--spacing-md);
+    background: var(--bg-primary);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--spacing-md);
+    color: var(--text-primary);
+}
+
+.auth-error {
+    background: #FFEBEE;
+    color: #C62828;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--spacing-md);
+    font-size: 0.9rem;
+}
+
+.btn-block {
+    width: 100%;
+    padding: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+}
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    margin: var(--spacing-md) 0;
+    color: var(--text-tertiary);
+    font-size: 0.85rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+}
+
+.auth-divider span {
+    padding: 0 var(--spacing-md);
+}
+
+.btn-social {
+    border: 1px solid var(--border-color);
+}
+
+.btn-social:hover {
+    background: var(--bg-primary);
+}
+
+/* ===== Home Header with User Menu ===== */
+.home-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.user-menu-btn {
+    color: var(--text-secondary);
+}
+
+/* ===== User Menu Modal ===== */
+.user-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: var(--spacing-md);
+}
+
+.user-avatar {
+    width: 64px;
+    height: 64px;
+    background: var(--bg-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-tertiary);
+}
+
+.user-avatar svg {
+    width: 32px;
+    height: 32px;
+}
+
+.user-email {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    word-break: break-all;
+    text-align: center;
+}
+
+.user-menu-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.user-menu-actions .btn svg {
+    flex-shrink: 0;
+}
+
+/* ===== Sync Status ===== */
+.sync-status {
+    position: fixed;
+    bottom: calc(var(--safe-area-bottom) + 100px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text-primary);
+    color: white;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-lg);
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    box-shadow: var(--shadow-lg);
+    z-index: 200;
+    animation: slideUp 0.3s ease-out;
+}
+
+.sync-status.hidden {
+    display: none;
+}
+
+.sync-status.success {
+    background: var(--color-sage);
+}
+
+.sync-status.error {
+    background: var(--color-coral);
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.sync-icon.spinning {
+    animation: spin 1s linear infinite;
+}
