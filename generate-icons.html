@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate PWA Icons</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        canvas { border: 1px solid #ccc; margin: 10px; }
+        .download-links { margin-top: 20px; }
+        .download-links a { display: block; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>PWA Icon Generator</h1>
+    <p>Right-click each canvas and "Save image as..." with the filename shown below it.</p>
+
+    <div id="canvases"></div>
+    <div id="download-links" class="download-links"></div>
+
+    <script>
+        const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+        const container = document.getElementById('canvases');
+        const linksContainer = document.getElementById('download-links');
+
+        // Load SVG
+        const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+          <defs>
+            <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#5C6BC0"/>
+              <stop offset="100%" style="stop-color:#7986CB"/>
+            </linearGradient>
+          </defs>
+          <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+          <rect x="100" y="140" width="56" height="56" rx="14" fill="white" opacity="0.95"/>
+          <path d="M116 168 L128 180 L144 156" stroke="#5C6BC0" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <rect x="180" y="156" width="220" height="24" rx="12" fill="white" opacity="0.9"/>
+          <rect x="100" y="228" width="56" height="56" rx="14" fill="white" opacity="0.95"/>
+          <rect x="180" y="244" width="180" height="24" rx="12" fill="white" opacity="0.9"/>
+          <rect x="100" y="316" width="56" height="56" rx="14" fill="white" opacity="0.95"/>
+          <rect x="180" y="332" width="240" height="24" rx="12" fill="white" opacity="0.9"/>
+        </svg>`;
+
+        const blob = new Blob([svgContent], {type: 'image/svg+xml'});
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+
+        img.onload = function() {
+            sizes.forEach(size => {
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, size, size);
+
+                const wrapper = document.createElement('div');
+                wrapper.style.display = 'inline-block';
+                wrapper.style.textAlign = 'center';
+                wrapper.appendChild(canvas);
+
+                const label = document.createElement('div');
+                label.textContent = `icon-${size}.png`;
+                wrapper.appendChild(label);
+
+                container.appendChild(wrapper);
+
+                // Create download link
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL('image/png');
+                link.download = `icon-${size}.png`;
+                link.textContent = `Download icon-${size}.png`;
+                linksContainer.appendChild(link);
+            });
+        };
+
+        img.src = url;
+    </script>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#5C6BC0">
+    <meta name="description" content="A simple, beautiful to-do list app">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Tasks">
+
+    <title>Tasks</title>
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="apple-touch-icon" href="icons/icon.svg">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Home View -->
+        <div id="home-view" class="view active">
+            <header class="app-header">
+                <h1>My Tasks</h1>
+            </header>
+
+            <main class="home-content">
+                <div id="lists-container" class="lists-container">
+                    <!-- List cards will be rendered here -->
+                </div>
+
+                <div id="empty-home" class="empty-state hidden">
+                    <div class="empty-icon">📝</div>
+                    <p>No lists yet</p>
+                    <p class="empty-hint">Tap + to create your first list</p>
+                </div>
+            </main>
+
+            <button id="fab-add" class="fab" aria-label="Add new task">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </button>
+        </div>
+
+        <!-- List Detail View -->
+        <div id="list-view" class="view">
+            <header class="app-header list-header">
+                <button id="back-btn" class="icon-btn" aria-label="Go back">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 18l-6-6 6-6"/>
+                    </svg>
+                </button>
+                <h1 id="list-title">List Name</h1>
+                <button id="edit-list-btn" class="icon-btn" aria-label="Edit list">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="1"></circle>
+                        <circle cx="19" cy="12" r="1"></circle>
+                        <circle cx="5" cy="12" r="1"></circle>
+                    </svg>
+                </button>
+            </header>
+
+            <main class="list-content">
+                <div id="tasks-container" class="tasks-container">
+                    <!-- Active tasks will be rendered here -->
+                </div>
+
+                <div id="empty-list" class="empty-state hidden">
+                    <div class="empty-icon">✨</div>
+                    <p>All done!</p>
+                    <p class="empty-hint">Add a task to get started</p>
+                </div>
+
+                <!-- Completed Section -->
+                <div id="completed-section" class="completed-section hidden">
+                    <button id="completed-toggle" class="completed-toggle">
+                        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                        <span>Completed</span>
+                        <span id="completed-count" class="completed-count">0</span>
+                    </button>
+                    <div id="completed-tasks" class="completed-tasks">
+                        <!-- Completed tasks will be rendered here -->
+                    </div>
+                </div>
+            </main>
+
+            <!-- Add Task Input -->
+            <div class="add-task-bar">
+                <input type="text" id="new-task-input" placeholder="Add a task..." autocomplete="off">
+                <button id="add-task-btn" class="add-task-btn" aria-label="Add task">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Add Modal -->
+    <div id="quick-add-modal" class="modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <h2>New Task</h2>
+            <textarea id="quick-task-input" placeholder="What do you need to do?" rows="3"></textarea>
+
+            <div class="list-selector">
+                <label>Add to list:</label>
+                <div id="list-options" class="list-options">
+                    <!-- List options will be rendered here -->
+                </div>
+                <button id="create-list-btn" class="create-list-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    New List
+                </button>
+            </div>
+
+            <div class="modal-actions">
+                <button id="cancel-quick-add" class="btn btn-secondary">Cancel</button>
+                <button id="confirm-quick-add" class="btn btn-primary">Add Task</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- List Edit/Create Modal -->
+    <div id="list-modal" class="modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <h2 id="list-modal-title">New List</h2>
+            <input type="text" id="list-name-input" placeholder="List name" autocomplete="off">
+
+            <div class="color-picker">
+                <label>Color:</label>
+                <div id="color-options" class="color-options">
+                    <!-- Color options will be rendered here -->
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button id="cancel-list-modal" class="btn btn-secondary">Cancel</button>
+                <button id="delete-list-btn" class="btn btn-danger hidden">Delete List</button>
+                <button id="confirm-list-modal" class="btn btn-primary">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div id="delete-modal" class="modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content modal-small">
+            <h2>Delete List?</h2>
+            <p id="delete-message">This will delete all tasks in this list.</p>
+            <div class="modal-actions">
+                <button id="cancel-delete" class="btn btn-secondary">Cancel</button>
+                <button id="confirm-delete" class="btn btn-danger">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
