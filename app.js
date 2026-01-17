@@ -1,8 +1,8 @@
 // ===== Supabase Configuration =====
-const SUPABASE_URL = 'https://itkpkxtzxsuclfudznak.supabaseClient.co';
+const SUPABASE_URL = 'https://itkpkxtzxsuclfudznak.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_s2bHZPU8nv2nFBrZtpbEdw_wvwTrSKD';
 
-const supabaseClient = window.supabaseClient.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ===== Constants =====
 const COLORS = [
