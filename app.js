@@ -346,6 +346,10 @@ function renderListDetail() {
     elements.listTitle.textContent = list.name;
     document.querySelector('.list-header').style.borderBottomColor = list.color;
 
+    // Set lighter background color for list view
+    const listContent = document.querySelector('.list-content');
+    listContent.style.backgroundColor = list.color + '15'; // 15 adds ~8% opacity in hex
+
     const activeTasks = list.tasks.filter(t => !t.completed);
     const completedTasks = list.tasks.filter(t => t.completed);
 
@@ -613,7 +617,8 @@ async function addTask(listId, content) {
     if (!list) return null;
 
     const id = generateId();
-    const position = list.tasks.filter(t => !t.completed).length;
+    const activeTasks = list.tasks.filter(t => !t.completed);
+    const position = activeTasks.length;
 
     const task = {
         id,
@@ -624,7 +629,9 @@ async function addTask(listId, content) {
         completedAt: null
     };
 
-    list.tasks.unshift(task);
+    // Add to bottom: insert after all active tasks but before completed ones
+    const completedTasks = list.tasks.filter(t => t.completed);
+    list.tasks = [...activeTasks, task, ...completedTasks];
 
     if (state.user) {
         const { error } = await supabaseClient.from('tasks').insert({

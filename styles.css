@@ -274,6 +274,7 @@ input, textarea {
     flex: 1;
     padding: var(--spacing-md);
     padding-bottom: calc(var(--safe-area-bottom) + 80px);
+    transition: background-color var(--transition-normal);
 }
 
 .tasks-container {
